@@ -34,7 +34,7 @@ char* load_file(const char* filename) {
     if (bytes_read != remaining) goto load_error;
   }
 
-  *(pos+remaining+1) = '\0';
+  *(pos+remaining) = '\0';
 
   close(file);
   return buff;
