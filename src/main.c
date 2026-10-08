@@ -6,16 +6,21 @@
 #include <unistd.h>
 #include "load_file.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 
 float vertices[] = {
-	// positions         // colors
-	 0.0f,  0.5f, 0.0f,  1.0f, 0.0f, 0.0f, // Top
-	 0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f, // Bottom Right
-	-0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f  // Bottom Left
+	// positions         // colors          // texture coords
+	 0.5f,  0.5f, 0.0f,  1.0f, 0.0f, 0.0f,  1.0f, 1.0f, // Top Right
+	 0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,  1.0f, 0.0f, // Bottom Right
+	-0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  0.0f, 0.0f, // Bottom Left
+	-0.5f,  0.5f, 0.0f,  0.7f, 0.2f, 1.0f,  0.0f, 1.0f, // Top Left
 };
 
 unsigned int indices[] = {
-	0, 1, 2
+	0, 1, 3,
+	1, 2, 3
 };
 
 GLuint load_shader(const char* filename, GLenum shaderType)
@@ -121,10 +126,40 @@ int main()
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) 0);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) (3 * sizeof(float)));
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*) 0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*) (3 * sizeof(float)));
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*) (6 * sizeof(float)));
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2);
+
+	// Texture parameters
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture);
+
+	// float texBorderColor[] = { 0.8f, 5.0f, 0.0f, 1.0f };
+	// glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, texBorderColor);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	int texWidth, texHeight, nrChannels;
+	stbi_set_flip_vertically_on_load(1);
+	unsigned char *data = stbi_load("textures/wall.jpg", &texWidth, &texHeight, &nrChannels, 0);
+	if (!data) {
+		fprintf(stderr, "ERROR LOADING TEXTURE\n");
+		exit(1);
+	}
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+	glGenerateMipmap(texture);
+
+	glUniform1i(glGetUniformLocation(shaderProgram, "uTexture"), 0);
+
+	stbi_image_free(data);
 
 	// glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
@@ -138,7 +173,7 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		glBindVertexArray(VAO);
-		glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 		glBindVertexArray(0);
 
 		glfwSwapBuffers(window);
